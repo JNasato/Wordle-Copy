@@ -1,5 +1,5 @@
 import "./App.css";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Box, Button, Grid } from "@mui/material";
 import BackspaceIcon from "@mui/icons-material/BackspaceOutlined";
 import four_letters from "./words/four_letters.json";
@@ -107,86 +107,126 @@ function App() {
     setSolution(WORDS[Math.floor(Math.random() * WORDS.length)]);
   }, [WORDS]);
 
-  const handleChange = (letter, current) => {
-    setGuessedWords({
-      ...guessedWords,
-      [current]: [...guessedWords[current], letter],
-    });
-  };
-
-  const handleDelete = (current) => {
-    const wordCopy = guessedWords[current];
-    wordCopy.pop();
-    setGuessedWords({ ...guessedWords, [current]: wordCopy });
-  };
-
-  const handleSubmit = (current) => {
-    console.log("solution :>> ", solution);
-    const guess = guessedWords[current];
-
-    if (guess.length !== gameType) {
-      shake();
-      toast.error("Not enough letters");
-    } else if (!WORDS.includes(guess.join(""))) {
-      shake();
-      toast.error("Not in word list");
-    } else {
-      const animation = anime({
-        targets: ".currentGuess",
-        translateY: [
-          {
-            value: -12,
-          },
-          {
-            value: 0,
-          },
-        ],
-        duration: 500,
-        easing: "easeInQuad",
-      });
-      animation.finished.then(() => {
-        setKeyboardLetters(guess);
-        setCurrentGuess(currentGuess + 1);
-        if (guess.join("") === solution) {
-          setGameEnded(true);
-          anime({
-            targets: ".winner",
-            translateY: [
-              {
-                value: 16,
-              },
-              {
-                value: -16,
-              },
-              {
-                value: 0,
-              },
-            ],
-            duration: 600,
-            easing: "easeInOutSine",
-            delay: anime.stagger(200),
-          });
-          toast.success(
-            `Congrats! You got it in ${currentGuess} ${
-              currentGuess > 1 ? "tries" : "try"
-            }!`
-          );
+  const setKeyboardLetters = useCallback(
+    (guess) => {
+      guess.forEach((letter, i) => {
+        if (letter === solution[i]) {
+          setGreenLetters((prev) => [...prev, letter]);
+        } else if (solution.split("").includes(letter)) {
+          setOrangeLetters((prev) => [...prev, letter]);
+        } else {
+          setWrongLetters((prev) => [...prev, letter]);
         }
       });
-    }
-  };
+    },
+    [solution]
+  );
 
-  const setKeyboardLetters = (guess) => {
-    guess.forEach((letter, i) => {
-      if (letter === solution[i]) {
-        setGreenLetters((prev) => [...prev, letter]);
-      } else if (solution.split("").includes(letter)) {
-        setOrangeLetters((prev) => [...prev, letter]);
+  const handleChange = useCallback(
+    (letter, current) => {
+      setGuessedWords({
+        ...guessedWords,
+        [current]: [...guessedWords[current], letter],
+      });
+    },
+    [guessedWords]
+  );
+
+  const handleDelete = useCallback(
+    (current) => {
+      const wordCopy = guessedWords[current];
+      wordCopy.pop();
+      setGuessedWords({ ...guessedWords, [current]: wordCopy });
+    },
+    [guessedWords]
+  );
+
+  const handleSubmit = useCallback(
+    (current) => {
+      console.log("solution :>> ", solution);
+      const guess = guessedWords[current];
+
+      if (guess.length !== gameType) {
+        shake();
+        toast.error("Not enough letters");
+      } else if (!WORDS.includes(guess.join(""))) {
+        shake();
+        toast.error("Not in word list");
       } else {
-        setWrongLetters((prev) => [...prev, letter]);
+        const animation = anime({
+          targets: ".currentGuess",
+          translateY: [
+            {
+              value: -12,
+            },
+            {
+              value: 0,
+            },
+          ],
+          duration: 500,
+          easing: "easeInQuad",
+        });
+        animation.finished.then(() => {
+          setKeyboardLetters(guess);
+          setCurrentGuess(currentGuess + 1);
+          if (guess.join("") === solution) {
+            setGameEnded(true);
+            anime({
+              targets: ".winner",
+              translateY: [
+                {
+                  value: 16,
+                },
+                {
+                  value: -16,
+                },
+                {
+                  value: 0,
+                },
+              ],
+              duration: 600,
+              easing: "easeInOutSine",
+              delay: anime.stagger(200),
+            });
+            toast.success(
+              `Congrats! You got it in ${currentGuess} ${
+                currentGuess > 1 ? "tries" : "try"
+              }!`
+            );
+          }
+          if (currentGuess === 6) {
+            setGameEnded(true);
+            toast.error(`You lost this round! The solution is ${solution}.`);
+          }
+        });
       }
-    });
-  };
+    },
+    [WORDS, currentGuess, gameType, guessedWords, setKeyboardLetters, solution]
+  );
+
+  const keyListener = useCallback(
+    (event) => {
+      if (!gameEnded) {
+        if (event.keyCode === 13) {
+          handleSubmit("word" + currentGuess);
+        }
+        if (event.keyCode === 8) {
+          handleDelete("word" + currentGuess);
+        }
+        if (LETTERS.includes(event.key.toUpperCase())) {
+          handleChange(event.key.toUpperCase(), "word" + currentGuess);
+        }
+      }
+    },
+    [currentGuess, gameEnded, handleChange, handleDelete, handleSubmit]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", keyListener);
+    return () => {
+      document.removeEventListener("keydown", keyListener);
+    };
+  }, [keyListener]);
 
   const keyboardButtonStyles = (letter) => {
     if (greenLetters.includes(letter)) {

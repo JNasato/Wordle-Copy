@@ -124,12 +124,13 @@ function App() {
 
   const handleChange = useCallback(
     (letter, current) => {
-      setGuessedWords({
-        ...guessedWords,
-        [current]: [...guessedWords[current], letter],
-      });
+      if (guessedWords[current].length < gameType)
+        setGuessedWords({
+          ...guessedWords,
+          [current]: [...guessedWords[current], letter],
+        });
     },
-    [guessedWords]
+    [gameType, guessedWords]
   );
 
   const handleDelete = useCallback(
@@ -243,8 +244,9 @@ function App() {
   const guessBoxStyles = (letter, guess, letterIndex, guessIndex) => {
     if (guessIndex + 1 < currentGuess) {
       if (
-        letter === solution[letterIndex] &&
-        guess.indexOf(letter) === letterIndex
+        (letter === solution[letterIndex] &&
+          guess.indexOf(letter) === letterIndex) ||
+        guess.join("") === solution
       ) {
         return GREEN;
       } else if (
